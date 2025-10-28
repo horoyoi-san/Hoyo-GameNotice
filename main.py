@@ -7,10 +7,14 @@ from game import game
 
 
 def sendDiscord(webhook_url, content: dict):
-    response = requests.post(webhook_url, data=json.dumps(content), headers={
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-    })
+    response = requests.post(
+        webhook_url,
+        data=json.dumps(content),
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+    )
     return response
 
 
@@ -31,15 +35,24 @@ def main(settings):
     if content:
         with open("commit.txt", "w", encoding="utf-8") as f:
             f.write(
-                f'{len(content)} new announcement{"s" if len(content) > 1 else ""} added')
+                f'{len(content)} new announcement{"s" if len(content) > 1 else ""} added'
+            )
+
+    # เตรียม list ของ webhook
+    webhooks = []
+    for key in ["webhook", "webhook1", "webhook2", "webhook3", "webhook4", "webhook5"]:
+        url = settings.get(key)
+        if url:
+            webhooks.append(url)
 
     for i in content:
-        response = sendDiscord(settings["webhook"], i)
-        print(timeStr, response)
-        if not response.ok:
-            print(response.text)
-            print(json.dumps(i, indent=2, ensure_ascii=False))
-        sleep(5)
+        for webhook_url in webhooks:
+            response = sendDiscord(webhook_url, i)
+            print(timeStr, response)
+            if not response.ok:
+                print(response.text)
+                print(json.dumps(i, indent=2, ensure_ascii=False))
+            sleep(5)
 
 
 main(settings)
