@@ -2,7 +2,7 @@ name: GI-GameNotice System
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */6 * * *"   # รันทุก 6 ชั่วโมง
   workflow_dispatch:
 
 jobs:
@@ -10,41 +10,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout data repo
+      # Checkout repo โดยไม่ใช้ credentials เดิม
+      - name: Checkout repo
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false
 
+      # Setup Python
       - name: Setup Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
           cache: "pip"
 
+      # Install dependencies
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # Save settings.json
       - name: Save settings.json
-        run: echo "{ \"name\":\"${{ secrets.NAME }}\", \"webhook\":\"${{ secrets.WEBHOOK }}\", \"language\":\"${{ secrets.LANGUAGE }}\", \"repo\":\"${GITHUB_REPOSITORY}\" }" > settings.json
+        run: |
+          echo "{ \"name\":\"${{ secrets.NAME }}\", \"webhook\":\"${{ secrets.WEBHOOK }}\", \"language\":\"${{ secrets.LANGUAGE }}\", \"repo\":\"${GITHUB_REPOSITORY}\" }" > settings.json
 
+      # Run main script
       - name: Execute main script
+        run: python3 main.py
+
+      # Read commit message
+      - name: Read commit message
+        id: commit
         run: |
-          python3 main.py
-          if [ -f "commit.txt" ];
-          then
-            echo "COMMIT_TITLE=$(<commit.txt)" >> $GITHUB_ENV
-            echo $(<commit.txt)
+          if [ -f commit.txt ]; then
+            COMMIT_MSG=$(<commit.txt)
+            echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+            echo "Commit message: $COMMIT_MSG"
           fi
 
-      - name: Commit update
-        if: env.COMMIT_TITLE != ''
+      # Commit & Push using PAT from secrets
+      - name: Commit & Push updates
+        if: env.COMMIT_MSG != ''
+        env:
+          PAT: ${{ secrets.PAT }}   # ใส่ Personal Access Token ใน Secrets
         run: |
-          git add -N log
-          git add -N README.md
-          if ! git diff --exit-code --quiet
-          then
-            git config user.name c2tr
-            git config user.email 80561604+github-actions@users.noreply.github.com
-            git add log
-            git add README.md
-            git commit -m "${{ env.COMMIT_TITLE }}"
-            git push
-          fi
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add log README.md
+          git commit -m "${{ env.COMMIT_MSG }}" || echo "No changes to commit"
+          git push https://x-access-token:${PAT}@github.com/horoyoi-san/GI-GameNotice.git HEAD:GI-GameNotice
