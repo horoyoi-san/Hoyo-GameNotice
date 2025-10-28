@@ -1,0 +1,59 @@
+name: GI-GameNotice System 13:30
+
+on:
+  schedule:
+    - cron: "30 6 * * *"   # รันเวลา 13:30 ไทย (17:00 UTC)
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repo โดยไม่ใช้ credentials เดิม
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      # Setup Python
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # Install dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Save settings.json
+      - name: Save settings.json
+        run: |
+          echo "{ \"name\":\"${{ secrets.NAME }}\", \"webhook\":\"${{ secrets.WEBHOOK }}\", \"language\":\"${{ secrets.LANGUAGE }}\", \"repo\":\"${GITHUB_REPOSITORY}\" }" > settings.json
+
+      # Run main script
+      - name: Execute main script
+        run: python3 main.py
+
+      # Read commit message
+      - name: Read commit message
+        id: commit
+        run: |
+          if [ -f commit.txt ]; then
+            COMMIT_MSG=$(<commit.txt)
+            echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+            echo "Commit message: $COMMIT_MSG"
+          fi
+
+      # Commit & Push using PAT from secrets
+      - name: Commit & Push updates
+        if: env.COMMIT_MSG != ''
+        env:
+          PAT: ${{ secrets.PAT }}   # ใส่ Personal Access Token ใน Secrets
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add log README.md
+          git commit -m "${{ env.COMMIT_MSG }}" || echo "No changes to commit"
+          git push https://x-access-token:${PAT}@github.com/horoyoi-san/GI-GameNotice.git HEAD:GI-GameNotice

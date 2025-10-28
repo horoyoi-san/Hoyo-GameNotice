@@ -1,8 +1,8 @@
-name: GI-GameNotice System
+name: GI-GameNotice System 05:00
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # รันทุก 6 ชั่วโมง
+    - cron: "0 22 * * *"   # รันเวลา 05:00 ไทย 
   workflow_dispatch:
 
 jobs:
