@@ -38,12 +38,9 @@ def main(settings):
                 f'{len(content)} new announcement{"s" if len(content) > 1 else ""} added'
             )
 
-    # เตรียม list ของ webhook
-    webhooks = []
-    for key in ["webhook", "webhook1", "webhook2", "webhook3", "webhook4", "webhook5"]:
-        url = settings.get(key)
-        if url:
-            webhooks.append(url)
+    # ✅ อ่านจาก "webhooks" array ใน settings.json
+    webhooks = settings.get("webhooks", [])
+    webhooks = [url for url in webhooks if url]  # กรองค่าว่างออก
 
     for i in content:
         for webhook_url in webhooks:

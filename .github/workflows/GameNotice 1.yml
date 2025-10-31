@@ -27,10 +27,22 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Save settings.json
+      # Save settings.json (รองรับ WEBHOOK ถึง WEBHOOK5)
       - name: Save settings.json
         run: |
-          echo "{ \"name\":\"${{ secrets.NAME }}\", \"webhook\":\"${{ secrets.WEBHOOK }}\", \"language\":\"${{ secrets.LANGUAGE }}\", \"repo\":\"${GITHUB_REPOSITORY}\" }" > settings.json
+          echo "{
+            \"name\": \"${{ secrets.NAME }}\",
+            \"webhooks\": [
+              \"${{ secrets.WEBHOOK }}\",
+              \"${{ secrets.WEBHOOK1 }}\",
+              \"${{ secrets.WEBHOOK2 }}\",
+              \"${{ secrets.WEBHOOK3 }}\",
+              \"${{ secrets.WEBHOOK4 }}\",
+              \"${{ secrets.WEBHOOK5 }}\"
+            ],
+            \"language\": \"${{ secrets.LANGUAGE }}\",
+            \"repo\": \"${GITHUB_REPOSITORY}\"
+          }" > settings.json
 
       # Run main script
       - name: Execute main script
@@ -43,17 +55,19 @@ jobs:
           if [ -f commit.txt ]; then
             COMMIT_MSG=$(<commit.txt)
             echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
-            echo "Commit message: $COMMIT_MSG"
+            echo "✅ Commit message loaded: $COMMIT_MSG"
+          else
+            echo "⚠️ No commit.txt found"
           fi
 
-      # Commit & Push using PAT from secrets
+      # Commit & Push updates
       - name: Commit & Push updates
         if: env.COMMIT_MSG != ''
         env:
-          PAT: ${{ secrets.PAT }}   # ใส่ Personal Access Token ใน Secrets
+          PAT: ${{ secrets.PAT }}
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add log README.md
-          git commit -m "${{ env.COMMIT_MSG }}" || echo "No changes to commit"
+          git add log README.md || true
+          git diff --cached --quiet && echo "No changes to commit" || git commit -m "${{ env.COMMIT_MSG }}"
           git push https://x-access-token:${PAT}@github.com/horoyoi-san/GI-GameNotice.git HEAD:GI-GameNotice
