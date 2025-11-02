@@ -41,7 +41,7 @@ async def game(settings) -> tuple[bool, list[dict]]:
     for ann in ann_list:
         print(f'new announcement {ann["ann_id"]} found. {ann["title"]}')
         embed = {
-            "color": 0x38f4af,
+            "color": 0xFFFFFF,
             "title": ann["title"],
             "image": {
                 "url": ann["banner"]
