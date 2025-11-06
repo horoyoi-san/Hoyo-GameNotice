@@ -75,8 +75,7 @@ async def game(settings) -> tuple[bool, list[dict]]:
             text = util.removeTTag(text)
             text, imgs = extract_images_and_text(text)
             
-            splitcontent = util.splitbylength(text, 1000)
-            
+
         for img_url in imgs:
             contents.append({
                 "username": f'{name} No.{ann["ann_id"]}',
