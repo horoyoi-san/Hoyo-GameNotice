@@ -9,6 +9,9 @@ header = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
 }
 
+def convert_js_link(text: str) -> str:
+    pattern = r"javascript:miHoYoGameJSSDK\.openInBrowser\('([^']+)',.*?\)"
+    return re.sub(pattern, r"\1", text)
 
 async def game(settings) -> tuple[bool, list[dict]]:
     name = settings["name"]

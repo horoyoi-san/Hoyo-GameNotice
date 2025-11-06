@@ -41,3 +41,10 @@ def embUrl(text: str):
 def removeTTag(text: str):
     # embed url
     return sub(r'</*t.*?>', "", text)
+
+def convert_js_link(text: str) -> str:
+    """
+    แปลงลิงก์ JavaScript ของ HoYoVerse ให้อ่านได้ เช่น
+    javascript:miHoYoGameJSSDK.openInBrowser('https://...') → https://...
+    """
+    return sub(r"javascript:miHoYoGameJSSDK\.openInBrowser\('([^']+)',.*?\)", r"\1", text)
