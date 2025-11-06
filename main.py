@@ -37,6 +37,10 @@ def main(settings):
             f.write(
                 f'{len(content)} new announcement{"s" if len(content) > 1 else ""} added'
             )
+    else:
+        with open("commit.txt", "w", encoding="utf-8") as f:
+            f.write("No new announcements")
+
 
     # ✅ อ่านจาก "webhooks" array ใน settings.json
     webhooks = settings.get("webhooks", [])
