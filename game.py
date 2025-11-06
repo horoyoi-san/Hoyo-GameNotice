@@ -70,34 +70,43 @@ async def game(settings) -> tuple[bool, list[dict]]:
             added_list.append(
                 f'[{ann_content["title"]}](log/{ann["ann_id"]}.md)')
 
-            text = util.embUrl(ann_content["content"])
-            text = md(text)
-            text = util.removeTTag(text)
-            text, imgs = extract_images_and_text(text)  # ดึงภาพออก
-            splitcontent = util.splitbylength(text, 1000)  # ✨ เพิ่มบรรทัดนี้คืนมา
-            for s in splitcontent[:3]:
-                embed["fields"].append({"name": "", "value": s})
-            if len(splitcontent) > 3:
-                embed["fields"].append({
-                    "name": "",
-                    "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann["ann_id"]}.md)'
-                })
+            html = util.embUrl(ann_content.get("content", ""))
+            html = convert_js_link(html)
 
-            # แล้วค่อยเพิ่ม embeds สำหรับภาพ
-            for img_url in imgs:
-                contents.append({
-                    "username": f'{name} No.{ann["ann_id"]}',
-                    "embeds": [{
-                        "color": 0xFFFFFF,
-                        "image": {"url": img_url}
-                    }]
-                })
+            # แยกเป็นหลายช่วง โดยแบ่งตาม <img ...>
+            parts = re.split(r'<img[^>]*src="([^"]+)"[^>]*>', html)
+            images = re.findall(r'<img[^>]*src="([^"]+)"[^>]*>', html)
 
-        else:
-            print("it doesn't match any content.")
-            raise KeyError()  # for now
-        contents.append(
-            {"username": f'{name} No.{ann["ann_id"]}', "embeds": [embed]})
+            # ตอนนี้ parts = [ข้อความก่อนรูป1, ข้อความก่อนรูป2, ...]
+            # images = [url1, url2, ...]
+
+            for i, img_url in enumerate(images):
+                part_html = parts[i]
+                part_md = md(part_html, heading_style="ATX")
+                part_md = util.removeTTag(part_md).strip()
+
+                if not part_md:
+                    continue
+
+                embed = {
+                    "color": 0x9B59B6,
+                    "title": ann_content.get("title"),
+                    "timestamp": ann.get("start_time"),
+                    "image": {"url": img_url},
+                    "fields": [],
+                }
+
+                sec_split = util.splitbylength(part_md, 1000)
+                for part in sec_split[:3]:
+                    embed["fields"].append({"name": "", "value": part})
+
+                if len(sec_split) > 3:
+                    embed["fields"].append(
+                        {"name": "", "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann.get("ann_id")}.md)'}
+                    )
+
+                contents.append({"username": f'{name} No.{ann.get("ann_id")}', "embeds": [embed]})
+
 
     if added_list:
         with open("README.md", "r", encoding="utf-8") as f:
