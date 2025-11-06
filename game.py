@@ -73,21 +73,26 @@ async def game(settings) -> tuple[bool, list[dict]]:
             text = util.embUrl(ann_content["content"])
             text = md(text)
             text = util.removeTTag(text)
-            text, imgs = extract_images_and_text(text)
-            
-
-        for img_url in imgs:
-            contents.append({
-                "username": f'{name} No.{ann["ann_id"]}',
-                "embeds": [{
-                    "color": 0xFFFFFF,
-                    "image": {"url": img_url}
-                }]
-            })
-
+            text, imgs = extract_images_and_text(text)  # ดึงภาพออก
+            splitcontent = util.splitbylength(text, 1000)  # ✨ เพิ่มบรรทัดนี้คืนมา
+            for s in splitcontent[:3]:
+                embed["fields"].append({"name": "", "value": s})
             if len(splitcontent) > 3:
-                embed["fields"].append(
-                    {"name": "", "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann["ann_id"]}.md)'})
+                embed["fields"].append({
+                    "name": "",
+                    "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann["ann_id"]}.md)'
+                })
+
+            # แล้วค่อยเพิ่ม embeds สำหรับภาพ
+            for img_url in imgs:
+                contents.append({
+                    "username": f'{name} No.{ann["ann_id"]}',
+                    "embeds": [{
+                        "color": 0xFFFFFF,
+                        "image": {"url": img_url}
+                    }]
+                })
+
         else:
             print("it doesn't match any content.")
             raise KeyError()  # for now
