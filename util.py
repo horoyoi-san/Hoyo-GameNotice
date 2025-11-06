@@ -3,28 +3,13 @@ from datetime import datetime
 from html import unescape as unhtmlescape
 
 
-def unix_time(time_val):
-    if isinstance(time_val, int):
-        return time_val
-    elif isinstance(time_val, str):
-        try:
-            dt = datetime.strptime(time_val, '%Y-%m-%d %H:%M:%S')
-            return int(dt.timestamp())
-        except Exception:
-            return 0
-    return 0
-
+def unix_time(time_str):
+    dt = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+    return int(dt.timestamp())
 
 
 def flatten(_list: list):
-    result = []
-    for i in _list:
-        if isinstance(i, dict) and "list" in i:
-            result.extend(i["list"])
-        else:
-            result.append(i)
-    return result
-
+    return [xi for i in _list for xi in i["list"]]
 
 
 def find(_list: list, func):
