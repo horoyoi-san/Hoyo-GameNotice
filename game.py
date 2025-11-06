@@ -1,10 +1,8 @@
 import re
 from requests import get
 from markdownify import markdownify as md
-from re import sub
 import util
 import data
-from re import findall, sub
 
 header = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
@@ -19,105 +17,88 @@ async def game(settings) -> tuple[bool, list[dict]]:
     lang = settings["language"]
     repo = settings["repo"]
 
-    url = f'https://sg-hk4e-api.hoyoverse.com/common/hk4e_global/announcement/api/getAnnList?game=hk4e&game_biz=hk4e_global&lang={lang}&bundle_id=hk4e_global&level=60&platform=pc&region=os_usa&uid=1'
-    response = get(url, headers=header)
-    if not response:
-        print(f'{name} failed.')
-        return False, []
-    list_obj = response.json()
-
-    ann_list = sorted(util.flatten(list_obj["data"]["list"]), key=lambda x: util.unix_time(
-        x["start_time"]), reverse=True)
-
-    ann_list = [i for i in ann_list if not data.hasAnn(i)]
-    if not ann_list:
-        return True, []
-
     url = f'https://sg-hk4e-api-static.hoyoverse.com/common/hk4e_global/announcement/api/getAnnContent?game=hk4e&game_biz=hk4e_global&lang={lang}&bundle_id=hk4e_global&platform=pc&region=os_asia&level=1'
     response = get(url, headers=header)
     if not response:
         print(f'{name} failed.')
         return False, []
+
     content_obj = response.json()
-    content_list = content_obj["data"]["list"]
+    raw_list = content_obj.get("data", {}).get("list", [])
+    if not isinstance(raw_list, list):
+        raw_list = []
+
+    ann_list = []
+    for i in raw_list:
+        if isinstance(i, dict) and "list" in i:
+            ann_list.extend(i["list"])
+        else:
+            ann_list.append(i)
+
+    ann_list = sorted(ann_list, key=lambda x: util.unix_time(x.get("start_time", 0)), reverse=True)
+    ann_list = [i for i in ann_list if not data.hasAnn(i)]
+    if not ann_list:
+        return True, []
 
     contents = []
     added_list = []
+
     for ann in ann_list:
-        print(f'new announcement {ann["ann_id"]} found. {ann["title"]}')
-        embed = {
-            "color": 0xFFFFFF,
-            "title": ann["title"],
-            "image": {
-                "url": ann["banner"]
-            },
-            "timestamp": ann["start_time"]
-        }
-        ann_content = util.find(
-            content_list, lambda x: x["title"] == ann["title"])
+        ann_content = util.find(raw_list, lambda x: x.get("title") == ann.get("title"))
+        if not ann_content:
+            continue
 
-        def extract_images_and_text(text: str):
-            # ดึงภาพทั้งหมดออกมา
-            imgs = findall(r'!\[.*?\]\((.*?)\)', text)
-            # ลบภาพออกจากข้อความ
-            text = sub(r'!\[.*?\]\(.*?\)', '', text).strip()
-            return text, imgs
+        data.update(ann.get("ann_id"), ann_content)
+        added_list.append(f'[{ann_content.get("title")}](log/{ann.get("ann_id")}.md)')
 
-        if ann_content:
-            embed["title"] = ann_content["title"]
-            embed["url"] = f'https://github.com/{repo}/tree/main/log/{ann["ann_id"]}.md'
-            embed["image"]["url"] = ann_content["banner"]
-            embed["fields"] = []
+        text = util.embUrl(ann_content.get("content", ""))
+        text = convert_js_link(text)
+        text = md(text, heading_style="ATX")
+        text = util.removeTTag(text).strip()
 
-            data.update(ann["ann_id"], ann_content)
+        sections = re.split(r'\n#{1,2} ', text)
+        sections = [s.strip() for s in sections if s.strip()]
 
-            added_list.append(
-                f'[{ann_content["title"]}](log/{ann["ann_id"]}.md)')
+        for sec in sections:
+            title_match = re.match(r'^(.*?)\n', sec)
+            title = title_match.group(1).strip() if title_match else ann_content.get("title")
 
-            html = util.embUrl(ann_content.get("content", ""))
-            html = convert_js_link(html)
+            img_match = re.search(r'!\[.*?\]\((.*?)\)', sec)
+            img_url = img_match.group(1) if img_match else ann_content.get("banner")
 
-            # แยกเป็นหลายช่วง โดยแบ่งตาม <img ...>
-            parts = re.split(r'<img[^>]*src="([^"]+)"[^>]*>', html)
-            images = re.findall(r'<img[^>]*src="([^"]+)"[^>]*>', html)
+            sec_text = re.sub(r'!\[.*?\]\(.*?\)', '', sec).strip()
+            if sec_text.startswith(title):
+                sec_text = sec_text[len(title):].strip()
 
-            # ตอนนี้ parts = [ข้อความก่อนรูป1, ข้อความก่อนรูป2, ...]
-            # images = [url1, url2, ...]
+            sec_split = util.splitbylength(sec_text, 1000)
 
-            for i, img_url in enumerate(images):
-                part_html = parts[i]
-                part_md = md(part_html, heading_style="ATX")
-                part_md = util.removeTTag(part_md).strip()
+            embed = {
+                "color": 0xF1C40F,
+                "title": title,
+                "timestamp": ann.get("start_time"),
+                "image": {"url": img_url},
+                "fields": [],
+            }
 
-                if not part_md:
-                    continue
+            for part in sec_split[:3]:
+                embed["fields"].append({"name": "", "value": part})
 
-                embed = {
-                    "color": 0x9B59B6,
-                    "title": ann_content.get("title"),
-                    "timestamp": ann.get("start_time"),
-                    "image": {"url": img_url},
-                    "fields": [],
-                }
+            if len(sec_split) > 3:
+                embed["fields"].append(
+                    {"name": "", "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann.get("ann_id")}.md)'}
+                )
 
-                sec_split = util.splitbylength(part_md, 1000)
-                for part in sec_split[:3]:
-                    embed["fields"].append({"name": "", "value": part})
-
-                if len(sec_split) > 3:
-                    embed["fields"].append(
-                        {"name": "", "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann.get("ann_id")}.md)'}
-                    )
-
-                contents.append({"username": f'{name} No.{ann.get("ann_id")}', "embeds": [embed]})
-
+            contents.append({"username": f'{name} No.{ann.get("ann_id")}', "embeds": [embed]})
 
     if added_list:
         with open("README.md", "r", encoding="utf-8") as f:
             readme = f.read()
         announcements = "  \n".join(added_list)
-        readme = sub(r'## Recent Announcements\n*[\s\S]*?\n*<end>',
-                     f'## Recent Announcements\n{announcements}\n<end>', readme)
+        readme = re.sub(
+            r'## Recent Announcements\n*[\s\S]*?\n*<end>',
+            f'## Recent Announcements\n{announcements}\n<end>',
+            readme
+        )
         with open("README.md", "w", encoding="utf-8") as f:
             f.write(readme)
 
