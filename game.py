@@ -1,3 +1,4 @@
+import re
 from requests import get
 from markdownify import markdownify as md
 from re import sub
