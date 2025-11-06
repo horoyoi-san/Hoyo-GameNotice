@@ -1,6 +1,6 @@
+import re
 from requests import get
 from markdownify import markdownify as md
-from re import sub
 import util
 import data
 
@@ -8,6 +8,9 @@ header = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
 }
 
+def convert_js_link(text: str) -> str:
+    pattern = r"javascript:miHoYoGameJSSDK\.openInBrowser\('([^']+)',.*?\)"
+    return re.sub(pattern, r"\1", text)
 
 async def game(settings) -> tuple[bool, list[dict]]:
     name = settings["name"]
@@ -19,70 +22,93 @@ async def game(settings) -> tuple[bool, list[dict]]:
     if not response:
         print(f'{name} failed.')
         return False, []
-    list_obj = response.json()
 
-    ann_list = sorted(util.flatten(list_obj["data"]["list"]), key=lambda x: util.unix_time(
-        x["start_time"]), reverse=True)
+    content_obj = response.json()
+    raw_list = content_obj.get("data", {}).get("list", [])
+    if not isinstance(raw_list, list):
+        raw_list = []
 
+    # รวมประกาศจากทุกหมวด
+    ann_list = []
+    for i in raw_list:
+        if isinstance(i, dict) and "list" in i:
+            ann_list.extend(i["list"])
+        else:
+            ann_list.append(i)
+
+    # กรองประกาศซ้ำ
+    ann_list = sorted(ann_list, key=lambda x: util.unix_time(x.get("start_time", 0)), reverse=True)
     ann_list = [i for i in ann_list if not data.hasAnn(i)]
     if not ann_list:
         return True, []
 
-    url = f'https://sg-hk4e-api-static.hoyoverse.com/common/hk4e_global/announcement/api/getAnnContent?game=hk4e&game_biz=hk4e_global&lang={lang}&bundle_id=hk4e_global&platform=pc&region=os_asia&level=1'
-    response = get(url, headers=header)
-    if not response:
-        print(f'{name} failed.')
-        return False, []
-    content_obj = response.json()
-    content_list = content_obj["data"]["list"]
-
     contents = []
     added_list = []
+
     for ann in ann_list:
-        print(f'new announcement {ann["ann_id"]} found. {ann["title"]}')
-        embed = {
-            "color": 0xFFFFFF,
-            "title": ann["title"],
-            "image": {
-                "url": ann["banner"]
-            },
-            "timestamp": ann["start_time"]
-        }
-        ann_content = util.find(
-            content_list, lambda x: x["title"] == ann["title"])
+        # หา content ตาม title
+        ann_content = util.find(raw_list, lambda x: x.get("title") == ann.get("title"))
+        if not ann_content:
+            continue
 
-        if ann_content:
-            embed["title"] = ann_content["title"]
-            embed["url"] = f'https://github.com/{repo}/tree/main/log/{ann["ann_id"]}.md'
-            embed["image"]["url"] = ann_content["banner"]
-            embed["fields"] = []
+        data.update(ann.get("ann_id"), ann_content)
 
-            data.update(ann["ann_id"], ann_content)
+        added_list.append(
+            f'[{ann_content.get("title")}](log/{ann.get("ann_id")}.md)')
+        
+        text = util.embUrl(ann_content.get("content", ""))
+        text = convert_js_link(text)  # <--- เพิ่มบรรทัดนี้
+        text = md(text, heading_style="ATX")
+        text = util.removeTTag(text).strip()
 
-            added_list.append(
-                f'[{ann_content["title"]}](log/{ann["ann_id"]}.md)')
+        # แยกแต่ละหัวข้อย่อยด้วย H1/H2
+        sections = re.split(r'\n#{1,2} ', text)
+        sections = [s.strip() for s in sections if s.strip()]
 
-            text = util.embUrl(ann_content["content"])
-            text = md(text)
-            text = util.removeTTag(text)
-            splitcontent = util.splitbylength(text, 1000)
-            for s in splitcontent[:3]:  # embed size limit? idk
-                embed["fields"].append({"name": "", "value": s})
-            if len(splitcontent) > 3:
+        for sec in sections:
+            title_match = re.match(r'^(.*?)\n', sec)
+            title = title_match.group(1).strip() if title_match else ann_content.get("title")
+
+            img_match = re.search(r'!\[.*?\]\((.*?)\)', sec)
+            img_url = img_match.group(1) if img_match else ann_content.get("banner")
+
+            sec_text = re.sub(r'!\[.*?\]\(.*?\)', '', sec).strip()
+
+            # 🧩 ถ้าขึ้นต้นด้วยชื่อเรื่องเดิม ให้ตัดออก
+            if sec_text.startswith(title):
+                sec_text = sec_text[len(title):].strip()
+
+            sec_split = util.splitbylength(sec_text, 1000)
+
+            embed = {
+                "color": 0x9B59B6,
+                "title": title,
+                #"url": f'https://github.com/{repo}/tree/main/log/{ann.get("ann_id")}.md',
+                "timestamp": ann.get("start_time"),
+                "image": {"url": img_url},
+                "fields": [],
+            }
+
+            for part in sec_split[:3]:
+                embed["fields"].append({"name": "", "value": part})
+
+            if len(sec_split) > 3:
                 embed["fields"].append(
-                    {"name": "", "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann["ann_id"]}.md)'})
-        else:
-            print("it doesn't match any content.")
-            raise KeyError()  # for now
-        contents.append(
-            {"username": f'{name} No.{ann["ann_id"]}', "embeds": [embed]})
+                    {"name": "", "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann.get("ann_id")}.md)'}
+                )
 
+            contents.append({"username": f'{name} No.{ann.get("ann_id")}', "embeds": [embed]})
+
+    # อัปเดต README.md
     if added_list:
         with open("README.md", "r", encoding="utf-8") as f:
             readme = f.read()
         announcements = "  \n".join(added_list)
-        readme = sub(r'## Recent Announcements\n*[\s\S]*?\n*<end>',
-                     f'## Recent Announcements\n{announcements}\n<end>', readme)
+        readme = re.sub(
+            r'## Recent Announcements\n*[\s\S]*?\n*<end>',
+            f'## Recent Announcements\n{announcements}\n<end>',
+            readme
+        )
         with open("README.md", "w", encoding="utf-8") as f:
             f.write(readme)
 
