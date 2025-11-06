@@ -1,8 +1,6 @@
 # GI-GameNotice
 
 ## Recent Announcements
-["เกมกลเจ็ดอัจฉริยะ" โหมดการต่อสู้อันเร่าร้อน: เกมกลอุบาย](log/21368.md)
-<end>
 
 ## Usage
 1. Fork this repo
