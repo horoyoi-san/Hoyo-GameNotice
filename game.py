@@ -76,8 +76,16 @@ async def game(settings) -> tuple[bool, list[dict]]:
             text, imgs = extract_images_and_text(text)
             
             splitcontent = util.splitbylength(text, 1000)
-            for s in splitcontent[:3]:  # embed size limit? idk
-                embed["fields"].append({"name": "", "value": s})
+            
+        for img_url in imgs:
+            contents.append({
+                "username": f'{name} No.{ann["ann_id"]}',
+                "embeds": [{
+                    "color": 0xFFFFFF,
+                    "image": {"url": img_url}
+                }]
+            })
+
             if len(splitcontent) > 3:
                 embed["fields"].append(
                     {"name": "", "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann["ann_id"]}.md)'})
