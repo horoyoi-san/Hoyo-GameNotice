@@ -4,28 +4,30 @@ on:
   schedule:
     - cron: "30 6 * * *"   # รันเวลา 13:30 ไทย (17:00 UTC)
   workflow_dispatch:
-
+    
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo โดยไม่ใช้ credentials เดิม
+      # Checkout repo
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          fetch-depth: 0
 
       # Setup Python
       - name: Setup Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
       # Install dependencies
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       # Save settings.json (รองรับ WEBHOOK ถึง WEBHOOK5)
       - name: Save settings.json
@@ -54,7 +56,7 @@ jobs:
         run: |
           if [ -f commit.txt ]; then
             COMMIT_MSG=$(<commit.txt)
-            echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+            echo "COMMIT_MSG=$COMMIT_MSG" >> "$GITHUB_ENV"
             echo "✅ Commit message loaded: $COMMIT_MSG"
           else
             echo "⚠️ No commit.txt found"
@@ -63,11 +65,17 @@ jobs:
       # Commit & Push updates
       - name: Commit & Push updates
         if: env.COMMIT_MSG != ''
-        env:
-          PAT: ${{ secrets.PAT }}
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
+
           git add log README.md || true
-          git diff --cached --quiet && echo "No changes to commit" || git commit -m "${{ env.COMMIT_MSG }}"
-          git push https://x-access-token:${PAT}@github.com/horoyoi-san/GI-GameNotice.git HEAD:GI-GameNotice
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "${{ env.COMMIT_MSG }}"
+
+          git push origin HEAD:GI-GameNotice  
