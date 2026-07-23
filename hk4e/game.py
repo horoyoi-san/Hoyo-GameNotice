@@ -1,8 +1,8 @@
 from requests import get
 from markdownify import markdownify as md
 from re import sub
-import util
-import data
+import hk4e.util as util
+import hk4e.data as data
 from re import findall, sub
 
 header = {
@@ -56,7 +56,7 @@ async def game(settings) -> tuple[bool, list[dict]]:
 
         if ann_content:
             embed["title"] = ann_content["title"]
-            embed["url"] = f'https://github.com/{repo}/tree/main/log/{ann["ann_id"]}.md'
+            embed["url"] = f'https://github.com/{repo}/tree/main/log/hk4e/{ann["ann_id"]}.md'
             embed["image"]["url"] = ann_content["banner"]
             embed["fields"] = []
 
@@ -82,7 +82,7 @@ async def game(settings) -> tuple[bool, list[dict]]:
             if len(splitcontent) > 3:
                 embed["fields"].append({
                     "name": "",
-                    "value": f'[see more...](https://github.com/{repo}/tree/main/log/{ann["ann_id"]}.md)'
+                    "value": f'[see more...](https://github.com/{repo}/tree/main/log/hk4e/{ann["ann_id"]}.md)'
                 })
 
             # แล้วค่อยเพิ่ม embeds สำหรับภาพ
