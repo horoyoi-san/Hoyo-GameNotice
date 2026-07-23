@@ -3,7 +3,7 @@ from os import makedirs
 from html import unescape as unhtmlescape
 import hk4e.util as util
 
-log_dir = "log"
+log_dir = "log/hk4e"
 
 makedirs(log_dir, exist_ok=True)
 
