@@ -1,4 +1,4 @@
-name: GI-GameNotice System 00:00
+name: Hoyo-GameNotice System 00:00
 
 on:
   schedule:
@@ -80,4 +80,4 @@ jobs:
 
           git commit -m "${{ env.COMMIT_MSG }}"
 
-          git push origin HEAD:GI-GameNotice  
+          git push origin HEAD:Hoyo-GameNotice  
