@@ -3,7 +3,7 @@ from time import sleep
 import datetime
 import json
 import requests
-from game import game
+from hk4e.game import game
 
 
 def sendDiscord(webhook_url, content: dict):
