@@ -1,7 +1,7 @@
 from os.path import isfile, join as pathjoin
 from os import makedirs
 from html import unescape as unhtmlescape
-import util
+import hkrpg.util as util
 
 log_dir = "log"
 

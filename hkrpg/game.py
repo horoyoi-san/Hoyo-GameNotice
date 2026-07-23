@@ -1,8 +1,8 @@
 import re
 from requests import get
 from markdownify import markdownify as md
-import util
-import data
+import hkrpg.util as util
+import hkrpg.data as data
 
 header = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
