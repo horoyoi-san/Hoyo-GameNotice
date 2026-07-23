@@ -4,16 +4,17 @@ on:
   schedule:
     - cron: "30 6 * * *"   # รันเวลา 13:30 ไทย (17:00 UTC)
   workflow_dispatch:
-    
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
-      - name: Checkout repo
+      # Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: Hoyo-GameNotice
           fetch-depth: 0
 
       # Setup Python
@@ -29,25 +30,27 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Save settings.json (รองรับ WEBHOOK ถึง WEBHOOK5)
-      - name: Save settings.json
+      # Create settings.json
+      - name: Create settings.json
         run: |
-          echo "{
-            \"name\": \"${{ secrets.NAME }}\",
-            \"webhooks\": [
-              \"${{ secrets.WEBHOOK }}\",
-              \"${{ secrets.WEBHOOK1 }}\",
-              \"${{ secrets.WEBHOOK2 }}\",
-              \"${{ secrets.WEBHOOK3 }}\",
-              \"${{ secrets.WEBHOOK4 }}\",
-              \"${{ secrets.WEBHOOK5 }}\"
+          cat > settings.json <<EOF
+          {
+            "name": "${{ secrets.NAME }}",
+            "webhooks": [
+              "${{ secrets.WEBHOOK }}",
+              "${{ secrets.WEBHOOK1 }}",
+              "${{ secrets.WEBHOOK2 }}",
+              "${{ secrets.WEBHOOK3 }}",
+              "${{ secrets.WEBHOOK4 }}",
+              "${{ secrets.WEBHOOK5 }}"
             ],
-            \"language\": \"${{ secrets.LANGUAGE }}\",
-            \"repo\": \"${GITHUB_REPOSITORY}\"
-          }" > settings.json
+            "language": "${{ secrets.LANGUAGE }}",
+            "repo": "${{ github.repository }}"
+          }
+          EOF
 
-      # Run main script
-      - name: Execute main script
+      # Run scripts
+      - name: Execute main scripts
         run: |
           python3 hk4e/main.py
           python3 hkrpg/main.py
@@ -57,12 +60,32 @@ jobs:
         id: commit
         run: |
           if [ -f commit.txt ]; then
-            COMMIT_MSG=$(<commit.txt)
+            COMMIT_MSG=$(cat commit.txt)
             echo "COMMIT_MSG=$COMMIT_MSG" >> "$GITHUB_ENV"
-            echo "✅ Commit message loaded: $COMMIT_MSG"
+            echo "Loaded commit message: $COMMIT_MSG"
           else
-            echo "⚠️ No commit.txt found"
+            echo "commit.txt not found."
           fi
+
+      # Commit & Push
+      - name: Commit & Push updates
+        if: env.COMMIT_MSG != ''
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          git add log README.md commit.txt || true
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "${{ env.COMMIT_MSG }}"
+
+          git pull --rebase origin Hoyo-GameNotice
+
+          git push origin HEAD:Hoyo-GameNotice
 
       # Commit & Push updates
       - name: Commit & Push updates
