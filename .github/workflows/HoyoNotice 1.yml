@@ -55,12 +55,8 @@ jobs:
       # Run scripts
       - name: Execute main scripts
         run: |
-          cd hk4e
-          python3 main.py
-          cd ..
-
-          cd hkrpg
-          python3 main.py
+          python3 -m hk4e.main
+          python3 -m hkrpg.main
 
       # Read commit message
       - name: Read commit message
