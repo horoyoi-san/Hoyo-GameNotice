@@ -54,6 +54,7 @@ jobs:
         run: |
           python3 -m hk4e.main
           python3 -m hkrpg.main
+          python3 -m nap.main
 
       # Read commit message
       - name: Read commit message
